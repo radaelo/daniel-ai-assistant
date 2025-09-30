@@ -1,39 +1,20 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from flask import Flask, request, jsonify
 import os
 import logging
 from huggingface_hub import InferenceClient
 
-# Configuración
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Crear aplicación FastAPI
-app = FastAPI(title="Daniel AI Assistant")
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = Flask(__name__)
 
 # Configuración
 HF_TOKEN = os.getenv("HF_TOKEN")
 MODEL_NAME = os.getenv("HF_MODEL_NAME", "microsoft/Phi-4-mini-flash-reasoning")
 
 if not HF_TOKEN:
-    raise ValueError("HF_TOKEN environment variable is not set")
+    raise RuntimeError("HF_TOKEN no configurado")
 
 client = InferenceClient(token=HF_TOKEN)
 
-class Query(BaseModel):
-    question: str
-
-def build_prompt(question: str) -> str:
+def build_prompt(question):
     return f"""
 [INST] <<SYS>>
 Eres Daniel Rada, experto en infraestructura cloud y ciberseguridad.
@@ -44,32 +25,9 @@ Pregunta: {question}
 [/INST]
 """
 
-@app.post("/api/ask")
-async def ask_question(query: Query):
-    try:
-        logger.info(f"Pregunta recibida: {query.question}")
-        
-        prompt = build_prompt(query.question)
-        
-        response = client.text_generation(
-            prompt,
-            model=MODEL_NAME,
-            max_new_tokens=300,
-            temperature=0.3,
-            do_sample=True,
-            return_full_text=False
-        )
-        
-        logger.info(f"Respuesta generada: {response[:100]}...")
-        return {"answer": response}
-        
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        return {"answer": "Lo siento, ocurrió un error al procesar tu pregunta"}
-
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    html_content = '''
+@app.route('/')
+def home():
+    return '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -117,6 +75,7 @@ async def home():
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
+            margin-right: 10px;
         }
         button {
             padding: 10px 20px;
@@ -132,10 +91,10 @@ async def home():
     <div class="container">
         <h1>🤖 Daniel AI Assistant</h1>
         <div class="chat-container" id="chat">
-            <div class="message bot">¡Hola! Soy Daniel Rada. ¿En qué puedo ayudarte?</div>
+            <div class="message bot"><strong>AI:</strong> ¡Hola! Soy Daniel Rada. ¿En qué puedo ayudarte?</div>
         </div>
         <div>
-            <input type="text" id="message" placeholder="Escribe tu pregunta..." autocomplete="off">
+            <input type="text" id="message" placeholder="Escribe tu pregunta sobre cloud o ciberseguridad..." autocomplete="off">
             <button onclick="sendMessage()">Enviar</button>
         </div>
     </div>
@@ -183,12 +142,30 @@ async def home():
 </body>
 </html>
 '''
-    return HTMLResponse(content=html_content)
 
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "model": MODEL_NAME}
+@app.route('/api/ask', methods=['POST'])
+def ask_question():
+    try:
+        data = request.get_json()
+        question = data.get('question', '')
+        
+        prompt = build_prompt(question)
+        response = client.text_generation(
+            prompt,
+            model=MODEL_NAME,
+            max_new_tokens=300,
+            temperature=0.3,
+            do_sample=True
+        )
+        
+        return jsonify({'answer': response})
+    except Exception as e:
+        return jsonify({'answer': f'Error: {str(e)}'})
 
-# Handler para Vercel - IMPORTANTE
-from mangum import Mangum
-handler = Mangum(app)
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy', 'model': MODEL_NAME})
+
+# Handler para Vercel - ESTA ES LA CLAVE
+def handler(request):
+    return app(request)

@@ -1,6 +1,2 @@
-fastapi==0.104.1
+flask==2.3.3
 huggingface_hub==0.19.4
-mangum==0.17.0
-python-multipart==0.0.6
-pydantic==2.5.0
-
