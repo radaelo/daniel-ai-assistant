@@ -25,7 +25,6 @@ class Feedback(BaseModel):
     correct_response: str
 
 def build_prompt(question: str) -> str:
-    """Construye el prompt para el modelo - Adaptado de tu model.py"""
     return f"""
 [INST] <<SYS>>
 Eres Daniel Rada, experto en infraestructura cloud y ciberseguridad con 10+ años de experiencia.
@@ -42,10 +41,8 @@ async def ask_question(query: Query):
     try:
         logger.info(f"Pregunta recibida: {query.question}")
         
-        # Construir prompt
         prompt = build_prompt(query.question)
         
-        # Llamar a Hugging Face API
         response = client.text_generation(
             prompt,
             model=MODEL_NAME,
@@ -65,7 +62,6 @@ async def ask_question(query: Query):
 @app.post("/feedback")
 async def receive_feedback(feedback: Feedback):
     try:
-        # En un entorno real, guardarías en una base de datos
         logger.info(f"Feedback recibido: {feedback.question}")
         return {"status": "feedback received"}
     except Exception as e:
@@ -75,6 +71,6 @@ async def receive_feedback(feedback: Feedback):
 async def health_check():
     return {"status": "OK", "model": MODEL_NAME}
 
-# Handler para Vercel
-async def handler(request):
-    return await app(request)
+# Handler específico para Vercel
+def handler(request):
+    return app

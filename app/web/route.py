@@ -1,16 +1,15 @@
-from flask import Flask, request, jsonify, render_template_string
-import os
+from flask import Flask, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
-# HTML con Vercel Analytics
+# HTML básico sin analytics por ahora
 HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
     <title>Daniel AI Assistant</title>
-    <script defer src="/_vercel/insights/script.js"></script>
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         .chat-container { border: 1px solid #ddd; padding: 20px; border-radius: 10px; }
@@ -19,32 +18,17 @@ HTML = '''
         .bot { background: #f5f5f5; }
         input, button { padding: 10px; margin: 5px; }
         input { width: 70%; }
-        .analytics-badge { 
-            position: fixed; 
-            bottom: 10px; 
-            right: 10px; 
-            background: #f0f0f0; 
-            padding: 5px 10px; 
-            border-radius: 5px; 
-            font-size: 12px; 
-        }
     </style>
 </head>
 <body>
     <h1>🤖 Daniel AI Assistant</h1>
     <div class="chat-container">
         <div id="chat"></div>
-        <input type="text" id="message" placeholder="Escribe tu pregunta sobre cloud o ciberseguridad...">
+        <input type="text" id="message" placeholder="Escribe tu pregunta...">
         <button onclick="sendMessage()">Enviar</button>
     </div>
 
-    <div class="analytics-badge">
-        📊 Analytics Activados
-    </div>
-
     <script>
-        // Vercel Analytics está automáticamente integrado via el script
-        
         async function sendMessage() {
             const messageInput = document.getElementById('message');
             const message = messageInput.value;
@@ -69,7 +53,7 @@ HTML = '''
                 // Scroll al final
                 chat.scrollTop = chat.scrollHeight;
             } catch (error) {
-                chat.innerHTML += `<div class="message bot" style="color: red;">Error: No se pudo conectar con el servidor</div>`;
+                chat.innerHTML += `<div class="message bot" style="color: red;">Error: No se pudo conectar</div>`;
             }
         }
         
@@ -88,17 +72,6 @@ HTML = '''
 def home():
     return HTML
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    try:
-        user_input = request.json.get('message')
-        response = requests.post(
-            "http://localhost:8000/ask",
-            json={"question": user_input, "session_id": "web"}
-        )
-        return jsonify(response.json())
-    except Exception as e:
-        return jsonify({"answer": f"Error: {str(e)}"})
-
+# Handler específico para Vercel
 def handler(request):
-    return app(request)
+    return app
